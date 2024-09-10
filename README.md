@@ -1,6 +1,6 @@
-Medusa Backend Server Setup Locally
-Prerequisites
-Ensure the following are installed and configured on your system before setting up the Medusa backend server:
+*Medusa Backend Server Setup Locally
+**Prerequisites
+**Ensure the following are installed and configured on your system before setting up the Medusa backend server:
 1.	Node.js (Ensure it is installed globally)
 2.	Yarn (Install globally)
 3.	PostgreSQL (Database server installed and configured)
