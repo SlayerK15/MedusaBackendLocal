@@ -4,12 +4,12 @@ WORKDIR /usr/src/app
 
 COPY package*.json ./
 
-RUN npm install -g @medusajs/medusa
+RUN node --max-old-space-size=1024 $(which npm) install -g @medusajs/medusa
 
-RUN npm install
+RUN node --max-old-space-size=1024 $(which npm) install
 
 COPY . .
 
 EXPOSE 9000
 
-CMD [ "medusa", "start" ]
+CMD ["sh", "-c", "medusa migrations run && medusa start"]
