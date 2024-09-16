@@ -1,143 +1,140 @@
-# Containerizing and Running Medusa Backend Locally Using Docker
+# Medusa Backend Deployment on AWS EC2
 
-This documentation will guide you through the steps to containerize and run the Medusa backend with PostgreSQL using Docker. It also includes instructions to access the Admin GUI and check the health of the service.
+This project contains the steps to deploy the Medusa eCommerce backend on an AWS EC2 instance using Docker and Docker Compose.
 
 ## Prerequisites
-1. Docker and Docker Compose installed on your machine.
-2. Basic knowledge of Medusa.js, Node.js, and PostgreSQL.
 
-## Step 1: Cloning the Git Repository
+Before you begin, ensure you have the following:
 
-Clone the repository of Task 1 to your local machine:
+- AWS account
+- EC2 instance running **Ubuntu 22.04**
+- Docker and Docker Compose installed
+- Git installed
+- Public and private SSH key pair for connecting to the EC2 instance
+
+## Steps for Deployment
+
+### 1. Login to AWS EC2 Dashboard
+
+Log in to your AWS account and navigate to the EC2 dashboard.
+
+### 2. Create a New Key Pair
+
+Create a new key pair from the EC2 dashboard, which will allow you to SSH into your virtual machine. Store this key pair safely on your local machine.
+
+### 3. Launch an EC2 Instance
+
+- Launch a new EC2 instance running **Ubuntu 22.04**.
+- Select an instance type that provides sufficient compute power for your application (e.g., t2.small).
+- Attach the previously created key pair to this instance.
+
+### 4. Configure Security Groups
+
+Modify the security groups of your EC2 instance to allow incoming traffic on **port 9000**. This will allow external access to the Medusa backend.
+
+### 5. SSH into the EC2 Instance
+
+After your instance is running, access it via SSH with the following command:
 
 ```bash
-git clone https://github.com/SlayerK15/MedusaBackendLocal.git
+ssh -i /path/to/your/key.pem ubuntu@<YOUR_EC2_IP>
 ```
 
-## Step 2: Dockerfile Setup
+Replace `/path/to/your/key.pem` with the path to your key pair and `<YOUR_EC2_IP>` with the public IP address of your EC2 instance.
 
-Here’s the Dockerfile used to containerize the Medusa backend:
+### 6. Install Docker, Docker Compose, and Git
+
+Once you're inside the EC2 instance, update the package manager and install Docker, Docker Compose, and Git:
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose git
+```
+
+### 7. Clone the Medusa Backend Repository
+
+Clone the Medusa backend repository from the Task 2 branch using Git:
+
+```bash
+git clone -b Task-2 https://github.com/SlayerK15/MedusaBackendLocal.git
+cd MedusaBackendLocal
+```
+
+### 8. Configure Environment Variables
+
+Create a `.env` file in the root directory of the cloned project to store environment variables required by the application. Example:
+
+```bash
+JWT_SECRET=something
+COOKIE_SECRET=something
+DATABASE_URL=postgres://postgres:123@postgres:5432/medusa_store_db
+REDIS_URL=redis://localhost:6379
+NODE_ENV=production
+```
+
+### 9. Modify the Dockerfile
+
+In the `Dockerfile`, ensure that Medusa migrations run before the server starts. Modify the `CMD` section as follows:
 
 ```Dockerfile
-FROM node:18-alpine
-WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm install -g @medusajs/medusa
-RUN npm install
-COPY . .
-EXPOSE 9000
-CMD [ "medusa", "start" ]
+CMD ["sh", "-c", "medusa migrations run && medusa start"]
 ```
 
-## Step 3: docker-compose.yml Setup
+This change ensures that database migrations are applied automatically during the application startup.
 
-Here is the `docker-compose.yml` file, which defines two services: Medusa (backend) and PostgreSQL (database).
+### 10. Build and Launch the Application
 
-```yaml
-services:
-  medusa:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: samplestore
-    ports:
-      - "9000:9000"
-    depends_on:
-      - postgres
-    environment:
-      DATABASE_URL: postgres://postgres:123@postgres:5432/medusa_store_db
-
-  postgres:
-    image: postgres:14
-    environment:
-      POSTGRES_DB: medusa_store_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-
-volumes:
-  pg_data:
-    driver: local
-```
-
-### Medusa Service:
-- Builds the backend image from the Dockerfile.
-- Maps **port 9000** for backend access.
-- Sets the `DATABASE_URL` environment variable to connect to PostgreSQL.
-
-### Postgres Service:
-- Runs PostgreSQL 14.
-- Configured with a database name, user, and password.
-- Uses a volume `pg_data` to ensure database persistence.
-
-## Step 4: Running the Application
-
-### a. Build and Run the Containers:
-
-Navigate to the directory containing your `Dockerfile` and `docker-compose.yml` file, then run:
+Build the Docker containers for the Medusa backend and PostgreSQL services using Docker Compose:
 
 ```bash
 docker-compose up --build
 ```
 
-This will build and start both the Medusa backend and PostgreSQL database.
-
-### b. Verify the Setup:
-
-Check if the services are running:
+Once the build is complete, launch the application in detached mode:
 
 ```bash
-docker ps
+docker-compose up -d
 ```
 
-The Medusa backend should be running on `localhost:9000`.
+### 11. Verify the Application
 
-## Step 5: Accessing the Medusa Admin GUI
-
-### Open the Admin GUI:
-- Go to `http://localhost:9000/app` in your browser to access the Medusa Admin interface.
-
-### Login:
-- Use the credentials you created during Medusa setup.
-- Once logged in, you will have access to manage products, customers, and orders through the admin panel.
-
-## Step 6: Checking Backend Health
-
-### Health Check:
-To ensure that your Medusa backend is running smoothly, perform a health check by navigating to:
+Check if the Medusa backend is running by navigating to:
 
 ```
-http://localhost:9000/health
+http://<YOUR_EC2_IP>:9000/app
 ```
 
-The endpoint should return:
-```json
-{
-  "status": "OK"
-}
+You should see the Medusa application interface.
+
+### 12. Create the Admin User
+
+Log in to the EC2 instance using the "Connect" option in the AWS console or SSH, and create an initial admin user via the terminal.
+
+### 13. Login to the Admin Panel
+
+Once the admin user is created, log in to the Medusa backend by navigating to:
+
+```
+http://<YOUR_EC2_IP>:9000/app/login
 ```
 
-## Admin User Creation (Optional)
+Enter the credentials for the admin user to access the admin panel.
 
-If you need to create an admin user, you can do so by running the following command in your Medusa container:
+### 14. Managing the Application
 
-```bash
-docker exec -it samplestore medusa user --create
-```
+You can manage the application using Docker commands. For example:
 
-## Stopping the Containers
+- To stop the application:
+  ```bash
+  docker-compose down
+  ```
 
-To stop the containers when you're done, simply run:
+- To check logs:
+  ```bash
+  docker-compose logs
+  ```
 
-```bash
-docker-compose down
-```
-
-## Admin GUI Screenshots
-
-Include relevant screenshots of the Medusa Admin GUI to document how to log in and manage the system.
-
----
-
-This setup ensures a consistent and isolated development environment that can be easily deployed across different machines.
+- To restart the application:
+  ```bash
+  docker-compose restart
+  ```
